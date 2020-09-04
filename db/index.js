@@ -87,61 +87,63 @@ async function createPost({ authorId, title, content, tags = [] }){
         `, [authorId, title, content]);
 
         const tagList = await createTags(tags);
-        
+        //^^ wtf is this.
         return post;
     } catch(error) {
         throw error;
     }
 }
 
-async function updatePost(postId, fields = {}) {
-    // read off the tags & remove that field 
-    const { tags } = fields; // might be undefined
-    delete fields.tags;
+// async function updatePostTags(postId, fields = {}) {
+//     // read off the tags & remove that field 
+//     const { tags } = fields; // might be undefined
+//     delete fields.tags;
+//   //updating title/content:
   
-    // build the set string
-    const setString = Object.keys(fields).map(
-      (key, index) => `"${ key }"=$${ index + 1 }`
-    ).join(', ');
+//     // all below updating tags:
+//     // build the set string
+//     const setString = Object.keys(fields).map(
+//       (key, index) => `"${ key }"=$${ index + 1 }`
+//     ).join(', ');
   
-    try {
-      // update any fields that need to be updated
-      if (setString.length > 0) {
-        await client.query(`
-          UPDATE posts
-          SET ${ setString }
-          WHERE id=${ postId }
-          RETURNING *;
-        `, Object.values(fields));
-      }
+//     try {
+//       // update any fields that need to be updated
+//       if (setString.length > 0) {
+//         await client.query(`
+//           UPDATE posts
+//           SET $1
+//           WHERE id=$2
+//           RETURNING *;
+//         `, [setString, postId]);
+//       }
   
-      // return early if there's no tags to update
-      if (tags === undefined) {
-        return await getPostById(postId);
-      }
+//       // return early if there's no tags to update
+//       if (tags === undefined) {
+//         return await getPostById(postId);
+//       }
   
-      // make any new tags that need to be made
-      const tagList = await createTags(tags);
-      const tagListIdString = tagList.map(
-        tag => `${ tag.id }`
-      ).join(', ');
+//       // make any new tags that need to be made
+//       const tagList = await createTags(tags);
+//       const tagListIdString = tagList.map(
+//         tag => `${ tag.id }`
+//       ).join(', ');
   
-      // delete any post_tags from the database which aren't in that tagList
-      await client.query(`
-        DELETE FROM post_tags
-        WHERE "tagId"
-        NOT IN (${ tagListIdString })
-        AND "postId"=$1;
-      `, [postId]);
+//       // delete any post_tags from the database which aren't in that tagList
+//       await client.query(`
+//         DELETE FROM post_tags
+//         WHERE "tagId"
+//         NOT IN (${ tagListIdString })
+//         AND "postId"=$1;
+//       `, [postId]);
   
-      // and create post_tags as necessary
-      await addTagsToPost(postId, tagList);
+//       // and create post_tags as necessary
+//       await addTagsToPost(postId, tagList);
   
-      return await getPostById(postId);
-    } catch (error) {
-      throw error;
-    }
-  }
+//       return await getPostById(postId);
+//     } catch (error) {
+//       throw error;
+//     }
+//   }
 
 async function getPostsByUser(userId){
     try {
@@ -181,13 +183,25 @@ async function getUserById(userId) {
     }
 }
 
+async function getTagById(tagId){
+  try {
+    const {rows: [tag]} = await client.query(`
+    SELECT * FROM tags
+    WHERE id=$1
+    RETURNING *;
+    `, [tagId]);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 async function getUserByUsername(username){
   try{
     const { rows: [user] } = await client.query(` 
-          SELECT id, username, name, location, active
+          SELECT *
           FROM users
-          WHERE username=${username};`
-    );
+          WHERE username=$1;
+          `, [username]);
 
     if(!user){
       return null
@@ -200,6 +214,36 @@ async function getUserByUsername(username){
     throw error;
   }
 }
+
+async function updatePost({title, content, id}){
+  try {
+    const {rows: [post]} = await client.query(`
+    UPDATE posts
+    SET title=$1,
+        content=$2
+    WHERE id=$3
+    RETURNING *;
+    `, [title, content, postId]);
+
+    return post;
+    
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+async function deletePost(id){
+  try {
+    const {rows: [post]} = await client.query(`
+    DELETE FROM posts
+    WHERE id=$1;
+    `,[id]);
+    
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 
 async function createPostTag(postId, tagId) {
     try {
@@ -249,26 +293,22 @@ async function getTags(){
         FROM post_tags;
     `);
 
-    const tags = await Promise.all(tagIds.map(
-        tags => getPostsByTagName(post_tags)
-      ));
-
     return post_tags;
     } catch (error){
         throw error;
     }
 }
-async function addTagsToPost(postId, tagList) {
+async function addTagsToPost(postId, tagId) {
     try {
-      const createPostTagPromises = tagList.map(
-        tag => createPostTag(postId, tag.id)
-      );
-  
-      await Promise.all(createPostTagPromises);
-  
-      return await getPostById(postId);
+      const {rows: [tag_post]} = await client.query(`
+      INSERT INTO post_tags("postId", "tagId")
+      VALUES ($1, $2)
+      RETURNING *;
+      `, [postId, tagId]);
+
+      return tag_post;
     } catch (error) {
-      throw error;
+      console.error(error);
     }
   }
 
@@ -333,10 +373,11 @@ module.exports = {
     getPosts,
     getPostsByUser,
     getUserById,
-    getUserbyUsername,
     createPostTag,
     addTagsToPost,
     getPostById,
-    getPostsByTagName
+    getPostsByTagName,
+    deletePost,
+    getTagById,
 }
 

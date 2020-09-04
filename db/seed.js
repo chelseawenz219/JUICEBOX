@@ -8,7 +8,7 @@ and no unwanted data
  */
 
 //imports from our index!!
-const { client, getUsers, createUser, updateUser, getPosts, createPost, updatePost, getPostsByUser, getUserById, createPostTag, addTagsToPost, getPostById, getPostsByTagName } = require('./index');
+const { client, getUsers, createUser, updateUser, getPosts, createPost, updatePost, getPostsByUser, getUserById, createPostTag, addTagsToPost, getPostById, getPostsByTagName, deletePost, } = require('./index');
 
 
 
@@ -130,6 +130,19 @@ async function createInitialPosts(){
     }
 }
 
+async function createInitialTagPosts(){
+    try {
+        console.log("Starting create init tags on posts");
+        await addTagsToPost(2, 1);
+        await addTagsToPost(3, 2);
+        await addTagsToPost(3, 5);
+        await addTagsToPost(2, 3);
+        console.log("Finished POST TAGS");
+    } catch (error) {
+        console.error(error);
+        throw error;
+    }
+}
 //all together now:
 async function rebuildDB(){
     try{
@@ -139,6 +152,7 @@ async function rebuildDB(){
         await createTables();
         await createInitialUsers();
         await createInitialPosts();
+        await createInitialTagPosts();
     }catch (error){
         console.error(error);
         throw error;
@@ -149,42 +163,12 @@ async function testDB(){
     try{
         console.log("Starting DB test..");
         //conect the client to database:
-        // client.connect();
-        //*queries are promises!
-
-        //testing getUser:
-        const users = await getUsers();
-        console.log("getUsers:", users);
-        console.log("calling update user on users[0]")
-
-        //testing updateUser:
-        const updateUserResult = await updateUser(users[0].id, {
-            name: "CHELSEA IN THE HOUSE",
-            location: "PLANET SUPER AWESOME"
-        });
-        console.log("result:", updateUserResult);
-
-        //testing getPosts:
-        console.log("calling getPosts!");
-        const posts = await getPosts();
-        console.log("posts:", posts);
-
-        //testing updatePost:
-        console.log("Calling updatePost on posts[1], only updating tags");
-        const updatePostTagsResult = await updatePost(posts[0].id, {
-            tags: ["#youcandoanything", "#redfish", "#bluefish"]
-        });
-    console.log("Result:", updatePostTagsResult);
-
-        //testing getuserbyid:
-        console.log("calling getUserBy...");
-        const chelseaUNICORN = await getUserById(1);
-        console.log("getUserResult:", chelseaUNICORN);
-
+        // client.connect(); 
         //test getPostByTag:
-        console.log("Calling getPostsByTagName with #happy");
-        const postsWithHappy = await getPostsByTagName("#happy");
-        console.log("Result:", postsWithHappy);
+        //not working
+        console.log("Calling getPostsByTagName");
+        const postswithtag = await getPostsByTagName("#second");
+        console.log("Result:", postswithtag);
 
         //done
         console.log("finished DB tests!");

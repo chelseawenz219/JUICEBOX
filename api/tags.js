@@ -9,5 +9,5 @@ tagsRouter.get('/', async (req, res) => {
     res.send({
         tags
     })
-})
+});
 module.exports = tagsRouter;
